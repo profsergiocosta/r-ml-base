@@ -40,13 +40,20 @@ The CRAN repository used is configurable via the `CRAN_REPO` environment variabl
 ### 1. Build the base image
 
 ```bash
-docker build -f Dockerfile.base -t lambdageo/r-ml-base:latest .
+docker build -f Dockerfile.base -t profsergiocosta/r-ml-base:latest .
+```
+
+Check that the packages are available (the Plumber image defines its own entrypoint, so override it):
+
+```bash
+docker run --rm --entrypoint Rscript profsergiocosta/r-ml-base:latest \
+  -e 'for (p in c("caret", "randomForest", "kernlab")) cat(p, as.character(packageVersion(p)), "\n")'
 ```
 
 Optionally, publish it to a registry (Docker Hub, GHCR, etc.) to reuse it across projects:
 
 ```bash
-docker push lambdageo/r-ml-base:latest
+docker push profsergiocosta/r-ml-base:latest
 ```
 
 ### 2. Using it as a base for another service
@@ -54,7 +61,7 @@ docker push lambdageo/r-ml-base:latest
 In your R/Plumber service's `Dockerfile`:
 
 ```dockerfile
-FROM lambdageo/r-ml-base:latest
+FROM profsergiocosta/r-ml-base:latest
 
 WORKDIR /app
 COPY . .
@@ -67,6 +74,19 @@ ENTRYPOINT ["Rscript", "plumber.R"]
 ```
 
 This way, the final service's build doesn't need to recompile `caret`, `randomForest` and the other heavy packages — they're already available in the base image.
+
+## Reproducibility
+
+By default the build is **not** frozen: the base is `rstudio/plumber:latest` and the R packages
+are installed from the current state of CRAN, so two builds made on different dates can contain
+different versions. For results that must be reproducible:
+
+- pin the base image in `Dockerfile.base` to a specific tag or digest instead of `latest`;
+- set `CRAN_REPO` (an `ENV` line in `Dockerfile.base`) to a dated CRAN snapshot, for example one
+  from [Posit Public Package Manager](https://packagemanager.posit.co/) such as
+  `https://packagemanager.posit.co/cran/2026-09-19`;
+- tag the published image with a version (`profsergiocosta/r-ml-base:1.0.0`) and record that tag, or the image digest,
+  in your own project instead of relying on `latest`.
 
 ## Adding new packages to the base
 
@@ -91,5 +111,33 @@ packages <- c(
 ```
 .
 ├── Dockerfile.base           # Base image definition
-└── install_packages_base.R   # R package installation script
+├── install_packages_base.R   # R package installation script
+├── .github/workflows/        # CI: build, smoke test and publish to Docker Hub
+├── CITATION.cff              # How to cite this image
+├── LICENSE                   # MIT License
+└── README.md
 ```
+
+## Publishing (maintainers)
+
+Pushing a version tag publishes the image through GitHub Actions (build, smoke tests, push, Docker Hub description sync). Pull requests that touch the Dockerfile or the package list only build and test.
+
+```bash
+git tag v1.0.0 && git push origin v1.0.0
+```
+
+Required repository secrets: `DOCKERHUB_USERNAME` and `DOCKERHUB_TOKEN` (access token with Read, Write, Delete scope). A tag `vX.Y.Z` (or `X.Y.Z`) publishes `X.Y.Z`, `X.Y` and `latest`. The first build compiles all the R packages and takes a while; later ones reuse the layer cache.
+
+## Citation
+
+If you use this image in your research, please cite it. GitHub's "Cite this repository" button
+(from [`CITATION.cff`](CITATION.cff)) gives the reference in APA and BibTeX. Please also cite the
+R packages you rely on (`citation("caret")`, for example).
+
+## License
+
+The files of this repository are released under the [MIT License](LICENSE). The image also
+contains third-party software (R, Plumber, the R packages and system libraries) under their own
+licenses, several of them GPL, which are not changed by this repository.
+
+Maintained by Sérgio Souza Costa, [LambdaGeo](https://github.com/LambdaGeo) research group (UFMA).
