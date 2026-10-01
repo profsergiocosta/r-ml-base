@@ -40,7 +40,7 @@ The CRAN repository used is configurable via the `CRAN_REPO` environment variabl
 ### 1. Build the base image
 
 ```bash
-docker build -f Dockerfile.base -t profsergiocosta/r-ml-base:latest .
+docker build -f Dockerfile -t profsergiocosta/r-ml-base:latest .
 ```
 
 Check that the packages are available (the Plumber image defines its own entrypoint, so override it):
@@ -81,8 +81,8 @@ By default the build is **not** frozen: the base is `rstudio/plumber:latest` and
 are installed from the current state of CRAN, so two builds made on different dates can contain
 different versions. For results that must be reproducible:
 
-- pin the base image in `Dockerfile.base` to a specific tag or digest instead of `latest`;
-- set `CRAN_REPO` (an `ENV` line in `Dockerfile.base`) to a dated CRAN snapshot, for example one
+- pin the base image in `Dockerfile` to a specific tag or digest instead of `latest`;
+- set `CRAN_REPO` (an `ENV` line in `Dockerfile`) to a dated CRAN snapshot, for example one
   from [Posit Public Package Manager](https://packagemanager.posit.co/) such as
   `https://packagemanager.posit.co/cran/2026-09-19`;
 - tag the published image with a version (`profsergiocosta/r-ml-base:1.0.0`) and record that tag, or the image digest,
@@ -110,7 +110,7 @@ packages <- c(
 
 ```
 .
-├── Dockerfile.base           # Base image definition
+├── Dockerfile           # Base image definition
 ├── install_packages_base.R   # R package installation script
 ├── .github/workflows/        # CI: build, smoke test and publish to Docker Hub
 ├── CITATION.cff              # How to cite this image
